@@ -1,0 +1,10 @@
+prove the engine works (and push to github)
+get a threejs scene going
+get the physics engine going
+integrate the machina.js
+figure out how to make menu screens
+get sounds figured out, how to make and how to play
+get textures from inkscape and possibly models from blender into the system
+get input working
+integrate some kind of tweening system
+possibly get joystick input

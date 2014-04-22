@@ -226,7 +226,7 @@ var render = function () {
     requestAnimationFrame(render);
     renderer.render(scene, camera);
 };
-render();
+requestAnimationFrame(render);
 
 
 
