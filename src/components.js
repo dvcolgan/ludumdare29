@@ -34,8 +34,6 @@ GAME.ActionInputComponent = ECS.Component.extend({
         this.up = false;
         this.down = false;
         this.action = false;
-        this.cancel = false;
-        this.enabled = true;
     }
 });
 

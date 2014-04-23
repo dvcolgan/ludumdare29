@@ -9,17 +9,14 @@ GAME.InputSystem = ECS.System.extend({
 
         this.world.getEntities(
             'keyboardArrowsInput',
-            'actionInput',
-            function(entity) {
-                entity.actionInput.left = this.input.keys.left;
-                entity.actionInput.right = this.input.keys.right;
-                entity.actionInput.up = this.input.keys.up;
-                entity.actionInput.down = this.input.keys.down;
-                entity.actionInput.action = this.input.keys.action;
-                entity.actionInput.cancel = this.input.keys.cancel;
-                entity.actionInput.enabled = this.input.keys.enabled;
-            }
-        );
+            'actionInput'
+        ).iterate(function(entity) {
+            entity.components.actionInput.left = this.input.keys.left;
+            entity.components.actionInput.right = this.input.keys.right;
+            entity.components.actionInput.up = this.input.keys.up;
+            entity.components.actionInput.down = this.input.keys.down;
+            entity.components.actionInput.action = this.input.keys.space;
+        }.bind(this));
     }
 });
 
@@ -29,14 +26,18 @@ GAME.SoundSystem = ECS.System.extend({
     },
 
     update: function(dt) {
-         this.world.getEntities('play-sound').iterate(function(entity) {
-             this.soundManager.play(entity.url);
-         });
+         var entities = this.world.getEntities('playSound');
+         entities.iterate(function(entity) {
+             console.log(entities);
+             console.log('playing sound');
+             this.soundManager.play(entity.components.playSound.url);
+             this.world.removeEntity(entity);
+         }.bind(this));
     }
 });
 
 GAME.ThreeJSRenderingSystem = ECS.System.extend({
-    init: function(callback) {
+    init: function() {
         this.soundManager = window.soundManager;
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(
@@ -44,9 +45,26 @@ GAME.ThreeJSRenderingSystem = ECS.System.extend({
     },
 
     update: function(dt) {
-         this.world.getEntities('play-sound').iterate(function(entity) {
-             this.soundManager.play(entity.url);
-         });
+         //this.world.getEntities('playSound').iterate(function(entity) {
+         //    this.soundManager.play(entity.url);
+         //});
     }
 });
 
+GAME.PlaySoundOnSpacebarSystem = ECS.System.extend({
+    init: function() {
+    },
+
+    update: function(dt) {
+        this.world.getEntities(
+            'keyboardArrowsInput',
+            'actionInput'
+        ).iterate(function(entity) {
+            if (entity.components.actionInput.action === 'hit') {
+                this.world.addEntity(
+                    new ECS.Entity().addComponent(
+                        new GAME.PlaySoundComponent('gunshot.wav')));
+            }
+        }.bind(this));
+    }
+});
