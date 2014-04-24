@@ -26,97 +26,6 @@ GAME.TweenSystem = ECS.System.extend({
     }
 });
 
-GAME.CubeSliderSystem = ECS.System.extend({
-    init: function(input) {
-        this.input = input;
-    },
-
-    update: function(dt) {
-        var left = (this.input.keys.left === 'hit');
-        var right = (this.input.keys.right === 'hit');
-        var up = (this.input.keys.up === 'hit');
-        var down = (this.input.keys.down === 'hit');
-        if (left || right || up || down) {
-            this.engine.getEntities(
-                'gridPosition',
-                'threejsObject'
-            ).iterate(function(entity) {
-                var position = {
-                    x: entity.components.gridPosition.getX(),
-                    z: entity.components.gridPosition.getZ()
-                };
-                if (left) {
-                    entity.components.gridPosition.col -= 1;
-                    if (entity.components.gridPosition.col < 0) {
-                        entity.components.gridPosition.col = 0;
-                    }
-                }
-                if (right) {
-                    entity.components.gridPosition.col += 1;
-                    if (entity.components.gridPosition.col > 3) {
-                        entity.components.gridPosition.col = 3;
-                    }
-                }
-                if (up) {
-                    entity.components.gridPosition.row -= 1;
-                    if (entity.components.gridPosition.row < 0) {
-                        entity.components.gridPosition.row = 0;
-                    }
-                }
-                if (down) {
-                    entity.components.gridPosition.row += 1;
-                    if (entity.components.gridPosition.row > 3) {
-                        entity.components.gridPosition.row = 3;
-                    }
-                }
-                if (entity.components.gridPosition.col < 0) {
-                    entity.components.gridPosition.col = 0;
-                }
-                var end = {
-                    x: entity.components.gridPosition.getX(),
-                    z: entity.components.gridPosition.getZ()
-                };
-                var tween = new TWEEN.Tween(position)
-                    .to(end, 300)
-                    .easing(TWEEN.Easing.Elastic.Out)
-                    .onUpdate(function() {
-                        entity.components.threejsObject.mesh.position.x = position.x;
-                        entity.components.threejsObject.mesh.position.z = position.z;
-                    })
-                    .start();
-            }.bind(this));
-        }
-    }
-});
-
-GAME.CubeCombiningSystem = ECS.System.extend({
-    init: function() {
-    },
-
-    update: function(dt) {
-        var entities = this.engine.getEntities(
-            'gridPosition',
-            'threejsObject'
-        );
-        for (var thisNode=entities.head; thisNode; thisNode=thisNode.next) {
-            for (var otherNode=entities.head; otherNode; otherNode=otherNode.next) {
-                if (thisNode.entity !== otherNode.entity) {
-                    var thisPosition = thisNode.entity.components.gridPosition;
-                    var otherPosition = otherNode.entity.components.gridPosition;
-                    if (thisPosition.col === otherPosition.col && thisPosition.col === otherPosition.col) {
-                        var thisNumber = thisNode.entity.components.numericValue.value;
-                        var otherNumber = otherNode.entity.components.numericValue.value;
-                        var newNumber = parseInt(thisNumber) + parseInt(otherNumber);
-                        this.engine.addEntity(this.prefabs.makeTile(thisPosition.col, parseInt(newNumber)));
-                        this.engine.removeEntity(thisNode.entity);
-                        this.engine.removeEntity(otherNode.entity);
-                    }
-                }
-            }
-        }
-    }
-});
-
 GAME.SoundSystem = ECS.System.extend({
     init: function(soundManager) {
         this.soundManager = soundManager;
@@ -201,69 +110,6 @@ GAME.ThreeJSRenderingSystem = ECS.System.extend({
     }
 });
 
-GAME.PlaySoundOnSpacebarSystem = ECS.System.extend({
-    init: function() {
-    },
-
-    update: function(dt) {
-        this.engine.getEntities(
-            'keyboardArrowsInput',
-            'actionInput'
-        ).iterate(function(entity) {
-            if (entity.components.actionInput.action === 'hit') {
-                this.engine.addEntity(
-                    new ECS.Entity().addComponent(
-                        new GAME.PlaySoundComponent('gunshot.wav')));
-            }
-        }.bind(this));
-    }
-});
-
-GAME.CannonPhysicsSystem = ECS.System.extend({
-    init: function() {
-        world = new CANNON.World();
-        world.gravity.set(0, -20, 0);
-        world.broadphase = new CANNON.NaiveBroadphase();
-
-        // Create a plane
-        var groundShape = new CANNON.Plane();
-        var groundBody = new CANNON.RigidBody(0,groundShape);
-        groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0),-Math.PI/2);
-        world.add(groundBody);
-
-        // Step the simulation
-        setInterval(function(){
-            world.step(1.0/60.0);
-        }, 1000.0/60.0);
-
-        this.world = world;
-    },
-
-    componentAdded: function(entity, componentName) {
-        if (componentName === 'cannonPhysicsObject') {
-            this.world.add(entity.components.cannonPhysicsObject.body);
-        }
-    },
-
-    componentRemoved: function(entity, componentName) {
-        if (componentName === 'cannonPhysicsObject') {
-            this.world.remove(entity.components.cannonPhysicsObject.body);
-        }
-    },
-
-    update: function(dt) {
-        this.engine.getEntities(
-            'threejsObject',
-            'cannonPhysicsObject'
-        ).iterate(function(entity) {
-            var mesh = entity.components.threejsObject.mesh;
-            var body = entity.components.cannonPhysicsObject.body;
-            body.position.copy(mesh.position);
-            body.quaternion.copy(mesh.quaternion);
-        });
-    }
-});
-
 GAME.PauseSystem = ECS.System.extend({
     init: function(game, input, pauseState) {
         this.game = game;
@@ -277,34 +123,7 @@ GAME.PauseSystem = ECS.System.extend({
     }
 });
 
-GAME.$2048ManagerSystem = ECS.System.extend({
-    init: function(prefabs) {
-        this.prefabs = prefabs;
-        this.started = false;
-    },
-
-    update: function(dt) {
-        if (!this.started) {
-            this.engine.removeEntities(this.engine.getEntities('threejsObject'));
-            this.engine.addEntity(this.prefabs.makeFloor());
-
-            this.engine.addEntity(this.prefabs.makeTile(0, 0, '2'));
-            this.engine.addEntity(this.prefabs.makeTile(0, 1, '2'));
-            this.engine.addEntity(this.prefabs.makeTile(0, 3, '2'));
-            this.engine.addEntity(this.prefabs.makeTile(3, 3, '2'));
-            this.started = true;
-        }
-        else {
-            this.engine.getEntities(
-                'gridPosition',
-                'threejsObject'
-            ).iterate(function(entity) {
-            }.bind(this));
-        }
-    }
-});
-
-GAME.$2040TitleScreenSystem = ECS.System.extend({
+GAME.TitleScreenSystem = ECS.System.extend({
     init: function(game, selector, playStateClass) {
         this.$container = $(selector);
         this.$wrapper = $('<div style="width: 100%; height: 100%;"></div>');
@@ -328,7 +147,7 @@ GAME.$2040TitleScreenSystem = ECS.System.extend({
     }
 });
 
-GAME.$2048PauseScreenSystem = ECS.System.extend({
+GAME.PauseScreenSystem = ECS.System.extend({
     init: function(game, selector) {
         this.$container = $(selector);
         this.$wrapper = $('<div></div>');
