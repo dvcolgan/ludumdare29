@@ -50,5 +50,21 @@ GAME.GridPositionComponent = ECS.Component.extend({
         this.name = 'gridPosition';
         this.col = col;
         this.row = row;
+    },
+
+    getX: function() {
+        return this.col * 1.5 - 2.25;
+    },
+
+    getZ: function() {
+        return this.row * 1.5 - 2.25;
+    }
+});
+
+
+GAME.NumericValueComponent = ECS.Component.extend({
+    init: function(value) {
+        this.name = 'numericValue';
+        this.value = value;
     }
 });

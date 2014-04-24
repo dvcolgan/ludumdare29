@@ -98,6 +98,7 @@ GAME.Prefabs = Class.extend({
         );
         var tile = ECS.Entity.createWithComponents(
             new GAME.GridPositionComponent(col, row),
+            new GAME.NumericValueComponent(number),
             new GAME.ThreeJSObjectComponent(mesh)
         );
         return tile;

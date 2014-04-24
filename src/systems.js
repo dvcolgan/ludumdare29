@@ -17,6 +17,106 @@ GAME.KeyboardInputSystem = ECS.System.extend({
     }
 });
 
+GAME.TweenSystem = ECS.System.extend({
+    init: function(input) {
+    },
+
+    update: function(dt) {
+        TWEEN.update();
+    }
+});
+
+GAME.CubeSliderSystem = ECS.System.extend({
+    init: function(input) {
+        this.input = input;
+    },
+
+    update: function(dt) {
+        var left = (this.input.keys.left === 'hit');
+        var right = (this.input.keys.right === 'hit');
+        var up = (this.input.keys.up === 'hit');
+        var down = (this.input.keys.down === 'hit');
+        if (left || right || up || down) {
+            this.engine.getEntities(
+                'gridPosition',
+                'threejsObject'
+            ).iterate(function(entity) {
+                var position = {
+                    x: entity.components.gridPosition.getX(),
+                    z: entity.components.gridPosition.getZ()
+                };
+                if (left) {
+                    entity.components.gridPosition.col -= 1;
+                    if (entity.components.gridPosition.col < 0) {
+                        entity.components.gridPosition.col = 0;
+                    }
+                }
+                if (right) {
+                    entity.components.gridPosition.col += 1;
+                    if (entity.components.gridPosition.col > 3) {
+                        entity.components.gridPosition.col = 3;
+                    }
+                }
+                if (up) {
+                    entity.components.gridPosition.row -= 1;
+                    if (entity.components.gridPosition.row < 0) {
+                        entity.components.gridPosition.row = 0;
+                    }
+                }
+                if (down) {
+                    entity.components.gridPosition.row += 1;
+                    if (entity.components.gridPosition.row > 3) {
+                        entity.components.gridPosition.row = 3;
+                    }
+                }
+                if (entity.components.gridPosition.col < 0) {
+                    entity.components.gridPosition.col = 0;
+                }
+                var end = {
+                    x: entity.components.gridPosition.getX(),
+                    z: entity.components.gridPosition.getZ()
+                };
+                var tween = new TWEEN.Tween(position)
+                    .to(end, 300)
+                    .easing(TWEEN.Easing.Elastic.Out)
+                    .onUpdate(function() {
+                        entity.components.threejsObject.mesh.position.x = position.x;
+                        entity.components.threejsObject.mesh.position.z = position.z;
+                    })
+                    .start();
+            }.bind(this));
+        }
+    }
+});
+
+GAME.CubeCombiningSystem = ECS.System.extend({
+    init: function() {
+    },
+
+    update: function(dt) {
+        var entities = this.engine.getEntities(
+            'gridPosition',
+            'threejsObject'
+        );
+        for (var thisNode=entities.head; thisNode; thisNode=thisNode.next) {
+            for (var otherNode=entities.head; otherNode; otherNode=otherNode.next) {
+                if (thisNode.entity !== otherNode.entity) {
+                    var thisPosition = thisNode.entity.components.gridPosition;
+                    var otherPosition = otherNode.entity.components.gridPosition;
+                    if (thisPosition.col === otherPosition.col && thisPosition.col === otherPosition.col) {
+                        var thisNumber = thisNode.entity.components.numericValue.value;
+                        var otherNumber = otherNode.entity.components.numericValue.value;
+                        var newNumber = parseInt(thisNumber) + parseInt(otherNumber);
+                        this.engine.addEntity(this.prefabs.makeTile(thisPosition.col, parseInt(newNumber)));
+                        this.engine.removeEntity(thisNode.entity);
+                        this.engine.removeEntity(otherNode.entity);
+                    }
+                }
+            }
+        }
+    }
+});
+
 GAME.SoundSystem = ECS.System.extend({
     init: function(soundManager) {
         this.soundManager = soundManager;
@@ -96,7 +196,6 @@ GAME.ThreeJSRenderingSystem = ECS.System.extend({
     },
 
     update: function(dt) {
-        console.log('updating');
         this.renderer.render(this.scene, this.camera);
         //this.spotLight.position.x += 1;
     }
@@ -205,22 +304,6 @@ GAME.$2048ManagerSystem = ECS.System.extend({
     }
 });
 
-GAME.AlignToGridSystem = ECS.System.extend({
-    init: function() {
-    },
-
-    update: function(dt) {
-        this.engine.getEntities(
-            'gridPosition',
-            'threejsObject'
-        ).iterate(function(entity) {
-            var position = entity.components.threejsObject.mesh.position;
-            position.x = entity.components.gridPosition.col * 1.5 - 2.25;
-            position.z = entity.components.gridPosition.row * 1.5 - 2.25;
-        }.bind(this));
-    }
-});
-
 GAME.$2040TitleScreenSystem = ECS.System.extend({
     init: function(game, selector, playStateClass) {
         this.$container = $(selector);
@@ -230,7 +313,6 @@ GAME.$2040TitleScreenSystem = ECS.System.extend({
         });
         this.$wrapper.append($button);
         this.$container.append(this.$wrapper);
-
     },
 
     pause: function() {

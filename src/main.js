@@ -22,11 +22,12 @@ GAME.PlayState = ECS.GameState.extend({
     create: function() {
         this.engine
             .addSystem(new GAME.KeyboardInputSystem(this.input), 0)
+            .addSystem(new GAME.CubeSliderSystem(this.input), 1)
             .addSystem(new GAME.PauseSystem(this.game, this.input, new GAME.PauseState()), 1)
             .addSystem(new GAME.SoundSystem(), 2)
             .addSystem(new GAME.ThreeJSRenderingSystem(this.assets), 3)
-            .addSystem(new GAME.AlignToGridSystem(this.prefabs), 4)
             .addSystem(new GAME.$2048ManagerSystem(this.prefabs), 4)
+            .addSystem(new GAME.TweenSystem(this.prefabs), 4)
         ;
     }
 });
