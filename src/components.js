@@ -16,6 +16,7 @@ GAME.CannonPhysicsObjectComponent = ECS.Component.extend({
     init: function(body) {
         this.name = 'cannonPhysicsObject';
         this.body = body;
+        
     }
 });
 
@@ -33,12 +34,21 @@ GAME.ActionInputComponent = ECS.Component.extend({
         this.right = false;
         this.up = false;
         this.down = false;
-        this.action = false;
+        this.pause = false;
     }
 });
 
 GAME.KeyboardArrowsInputComponent = ECS.Component.extend({
     init: function() {
         this.name = 'keyboardArrowsInput';
+    }
+});
+
+
+GAME.GridPositionComponent = ECS.Component.extend({
+    init: function(col, row) {
+        this.name = 'gridPosition';
+        this.col = col;
+        this.row = row;
     }
 });
