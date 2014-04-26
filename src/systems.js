@@ -1,24 +1,71 @@
-GAME.KeyboardInputSystem = ECS.System.extend({
-    init: function(input) {
-        this.input = input;
-    },
+ROCKS_RADIUS = 20;
+AREA_RADIUS = 200;
 
+
+S.KeyboardInputSystem = ECS.System.extend({
     update: function(dt) {
         this.engine.getEntities(
             'keyboardArrowsInput',
             'actionInput'
         ).iterate(function(entity) {
-            entity.components.actionInput.left = this.input.keys.left;
-            entity.components.actionInput.right = this.input.keys.right;
-            entity.components.actionInput.up = this.input.keys.up;
-            entity.components.actionInput.down = this.input.keys.down;
-            entity.components.actionInput.pause = this.input.keys.space;
+            var keys = G.input.keys;
+            entity.components.actionInput.left = keys.left || keys.a;
+            entity.components.actionInput.right = keys.right || keys.d || keys.e;
+            entity.components.actionInput.up = keys.up || keys.w || keys.comma;
+            entity.components.actionInput.down = keys.down || keys.s || keys.o;
+            //entity.components.actionInput.pause = G.input.keys.space;
         }.bind(this));
     }
 });
 
-GAME.TweenSystem = ECS.System.extend({
+S.SimpleMovementSystem = ECS.System.extend({
+    update: function(dt) {
+        this.engine.getEntities(
+            'camera',
+            'actionInput'
+        ).iterate(function(entity) {
+            var speed = 20 * dt;
+            if (entity.components.actionInput.left) {
+                entity.components.camera.camera.position.x -= speed;
+            }
+            if (entity.components.actionInput.right) {
+                entity.components.camera.camera.position.x += speed;
+            }
+            if (entity.components.actionInput.up) {
+                entity.components.camera.pitchObject.position.z -= speed;
+            }
+            if (entity.components.actionInput.down) {
+                entity.components.camera.pitchObject.position.z += speed;
+            }
+        }.bind(this));
+    }
+});
+
+// Based off of the PointerLockControls from the ThreeJS examples
+S.CameraLookSystem = ECS.System.extend({
+    update: function(dt) {
+         var entities = this.engine.getEntities(
+             'camera'
+         ).iterate(function(entity) {
+             var camera = entity.components.camera.camera;
+             var yawObject = entity.components.camera.yawObject;
+             var pitchObject = entity.components.camera.pitchObject;
+
+             camera.rotation.set(0, 0, 0);
+
+             var PI_2 = Math.PI / 2;
+
+             yawObject.rotation.y -= G.input.mouse.movementX * 0.3 * dt;
+             pitchObject.rotation.x -= G.input.mouse.movementY * 0.3 * dt;
+
+             pitchObject.rotation.x = Math.max(-PI_2, Math.min(PI_2, pitchObject.rotation.x));
+         }.bind(this));
+    }
+});
+
+S.TweenSystem = ECS.System.extend({
     init: function(input) {
+        this._super();
     },
 
     update: function(dt) {
@@ -26,8 +73,9 @@ GAME.TweenSystem = ECS.System.extend({
     }
 });
 
-GAME.SoundSystem = ECS.System.extend({
+S.SoundSystem = ECS.System.extend({
     init: function(soundManager) {
+        this._super();
         this.soundManager = soundManager;
     },
 
@@ -40,14 +88,15 @@ GAME.SoundSystem = ECS.System.extend({
     }
 });
 
-GAME.ThreeJSRenderingSystem = ECS.System.extend({
+S.ThreeJSRenderingSystem = ECS.System.extend({
     init: function(assets) {
+        this._super();
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 5000);
+        this.scene.fog = new THREE.FogExp2(0x000000, 0.008);
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
-        this.renderer.shadowMapEnabled = true;
-        this.renderer.shadowMapSoft = true;
-        this.renderer.setClearColor(0x91D9FF, 1);
+        //this.renderer.shadowMapEnabled = true;
+        //this.renderer.shadowMapSoft = true;
+        //this.renderer.setClearColor(0x91D9FF, 1);
 
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(this.renderer.domElement);
@@ -55,42 +104,46 @@ GAME.ThreeJSRenderingSystem = ECS.System.extend({
         this.ambientLight = new THREE.AmbientLight('#333333');
         this.scene.add(this.ambientLight);
 
-        this.spotLight = new THREE.SpotLight( 0xffffff, 1, 0, Math.PI / 2, 1 );
-        this.spotLight.position.set(0, 100, 0);
-        this.spotLight.target.position.set(0, 0, 0);
+        this.pointLight = new THREE.PointLight('#f8de91', 1, AREA_RADIUS * 1.4);
+        this.pointLight.position.y = 5;
+        this.scene.add(this.pointLight);
+        this.pointLight = new THREE.PointLight('#f8de91', 1, AREA_RADIUS * 1.4);
+        this.pointLight.position.y = -5;
+        this.scene.add(this.pointLight);
 
-        //this.spotLight.castShadow = true;
-
-        //this.spotLight.shadowCameraNear = 1;
-        //this.spotLight.shadowCameraFar = 25;
-        //this.spotLight.shadowCameraFov = 50;
-        //this.spotLight.shadowBias = 0.0001;
-        //this.spotLight.shadowDarkness = 0.8;
-        //this.spotLight.shadowCameraVisible = true;
-
-        //this.spotLight.shadowMapWidth = 1024;
-        //this.spotLight.shadowMapHeight = 1024;
-
-        this.scene.add(this.spotLight);
-
-        //this.controls = new THREE.OrbitControls(this.camera);
-        //controls.addEventListener('change', render);
-        this.camera.position.z = 0;
-        this.camera.position.y = 7;
-        this.camera.position.x = 0;
-        this.camera.rotation.x -= Math.PI / 2;
-        //this.camera.lookAt(new THREE.Vector3(0, 0, 0));
+        this.wallsTexture = G.loader.cloneTexture('ground');
+        this.wallsTexture.wrapS = this.wallsTexture.wrapT = THREE.RepeatWrapping;
+        this.wallsTexture.repeat.set(10, 10);
+        this.wallsTexture.needsUpdate = true;
+        this.wallsMesh = new THREE.Mesh(
+            new THREE.CylinderGeometry(ROCKS_RADIUS + 1, ROCKS_RADIUS + 1, AREA_RADIUS * 2, 12, 5, true),
+            new THREE.MeshPhongMaterial({
+                specular: '#222222',
+                color: '#111111',
+                emissive: '#000000',
+                shininess: 10,
+                side: THREE.DoubleSide,
+                map: this.wallsTexture
+            })
+        );
+        this.scene.add(this.wallsMesh);
     },
 
     componentAdded: function(entity, componentName) {
-        if (componentName === 'threejsObject') {
-            this.scene.add(entity.components.threejsObject.mesh);
+        if (componentName === 'mesh') {
+            this.scene.add(entity.components.mesh.mesh);
+        }
+        if (componentName === 'camera') {
+            this.scene.add(entity.components.camera.pivot);
         }
     },
 
     componentRemoved: function(entity, componentName) {
-        if (componentName === 'threejsObject') {
-            this.scene.remove(entity.components.threejsObject.mesh);
+        if (componentName === 'mesh') {
+            this.scene.remove(entity.components.mesh.mesh);
+        }
+        if (componentName === 'camera') {
+            this.scene.remove(entity.components.camera.pivot);
         }
     },
 
@@ -105,26 +158,30 @@ GAME.ThreeJSRenderingSystem = ECS.System.extend({
     },
 
     update: function(dt) {
-        this.renderer.render(this.scene, this.camera);
-        //this.spotLight.position.x += 1;
+        this.wallsTexture.offset.y -= 4 * dt;
+        this.wallsTexture.offset.y %= 1;
+        this.wallsTexture.needsUpdate = true;
+        this.engine.getEntities('camera').iterate(function(entity) {
+            this.renderer.render(this.scene, entity.components.camera.camera);
+        }.bind(this));
     }
 });
 
-GAME.PauseSystem = ECS.System.extend({
-    init: function(game, input, pauseState) {
-        this.game = game;
-        this.input = input;
-        this.pauseState = pauseState;
+S.PauseSystem = ECS.System.extend({
+    init: function() {
+        this._super();
+        this.pauseState = new T.PauseState();
     },
     update: function(dt) {
-        if (this.input.keys.space) {
-            this.game.pushState(this.pauseState);
+        if (G.input.keys.space) {
+            G.pushState(this.pauseState);
         }
     }
 });
 
-GAME.TitleScreenSystem = ECS.System.extend({
+S.TitleScreenSystem = ECS.System.extend({
     init: function(game, selector, playStateClass) {
+        this._super();
         this.$container = $(selector);
         this.$wrapper = $('<div style="width: 100%; height: 100%;"></div>');
         $button = $('<button>Click me to start</button>').click(function() {
@@ -147,12 +204,13 @@ GAME.TitleScreenSystem = ECS.System.extend({
     }
 });
 
-GAME.PauseScreenSystem = ECS.System.extend({
-    init: function(game, selector) {
-        this.$container = $(selector);
+S.PauseScreenSystem = ECS.System.extend({
+    init: function() {
+        this._super();
+        this.$container = $(G.selector);
         this.$wrapper = $('<div></div>');
         $button = $('<button>Click me to go back</button>').click(function() {
-            game.popStateAndPause();
+            G.popStateAndPause();
         });
         this.$wrapper.append($button);
         this.$container.append(this.$wrapper);
@@ -170,3 +228,67 @@ GAME.PauseScreenSystem = ECS.System.extend({
         this.$container.remove(this.$wrapper);
     }
 });
+
+S.ObstacleFlyingSystem = ECS.System.extend({
+    init: function() {
+        this._super();
+        this.pool = [];
+        _.times(2000, function() {
+            var rock = P.makeRock();
+            rock.components.mesh.mesh.position.y = -10000;
+            rock.components.mesh.mesh.geometry.applyMatrix(new THREE.Matrix4().makeTranslation(ROCKS_RADIUS, 0, 0));
+            rock.components.mesh.mesh.rotation.y = Math.random() * 2 * Math.PI;
+            this.pool.push(rock);
+            this.engine.addEntity(rock);
+        }.bind(this));
+    },
+    spawnRock: function() {
+        var rock = this.pool.pop();
+        if (!rock) {
+            return;
+        }
+        rock.components.mesh.mesh.position.set(0, -AREA_RADIUS, 0);
+
+        // Give this rock a random position around the center
+        //var vector = rock.components.mesh.mesh.position;
+        //var axis = new THREE.Vector3(0, 1, 0);
+        //var angle = Math.random() * 2 * Math.PI;
+        //var matrix = new THREE.Matrix4().makeRotationAxis(axis, angle);
+        //vector.applyMatrix4(matrix);
+    },
+    update: function(dt) {
+        console.log(dt);
+         var entities = this.engine.getEntities(
+             'rock',
+             'mesh'
+         ).iterate(function(rock) {
+            var mesh = rock.components.mesh.mesh;
+            mesh.position.y += 150 * dt;
+            if (mesh.position.y > AREA_RADIUS + 10) {
+                this.pool.push(rock);
+            }
+            if (Math.random() < 0.001) {
+                this.spawnRock();
+            }
+         }.bind(this));
+    }
+});
+
+S.GameManagerSystem = ECS.System.extend({
+    init: function() {
+        this._super();
+        var player = P.makePlayer();
+        player.components.camera.pitchObject.rotation.x = -Math.PI/2;
+        this.engine.addEntity(player);
+    },
+
+    update: function(dt) {
+    }
+});
+
+/*
+var entities = this.engine.getEntities(
+    'camera'
+).iterate(function(entity) {
+}.bind(this));
+*/

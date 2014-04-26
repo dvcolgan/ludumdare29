@@ -1,25 +1,38 @@
-GAME.PlayerComponent = ECS.Component.extend({
+C.Player = ECS.Component.extend({
     init: function() {
         this.name = 'player';
 
     }
 });
 
-GAME.ThreeJSObjectComponent = ECS.Component.extend({
+C.Rock = ECS.Component.extend({
     init: function(mesh) {
-        this.name = 'threejsObject';
+        this.name = 'rock';
+    }
+});
+
+C.Mesh = ECS.Component.extend({
+    init: function(mesh) {
+        this.name = 'mesh';
         this.mesh = mesh;
     }
 });
 
-GAME.PlaySoundComponent = ECS.Component.extend({
+C.RigidBody = ECS.Component.extend({
+    init: function(body) {
+        this.name = 'rigidBody';
+        this.body = body;
+    }
+});
+
+C.PlaySound = ECS.Component.extend({
     init: function(url) {
         this.name = 'playSound';
         this.url = url;
     }
 });
 
-GAME.ActionInputComponent = ECS.Component.extend({
+C.ActionInput = ECS.Component.extend({
     init: function() {
         this.name = 'actionInput';
         this.left = false;
@@ -30,8 +43,23 @@ GAME.ActionInputComponent = ECS.Component.extend({
     }
 });
 
-GAME.KeyboardArrowsInputComponent = ECS.Component.extend({
+C.KeyboardArrowsInput = ECS.Component.extend({
     init: function() {
         this.name = 'keyboardArrowsInput';
+    }
+});
+
+C.Camera = ECS.Component.extend({
+    init: function(camera) {
+        this.name = 'camera';
+        this.camera = camera;
+        this.pitchObject = new THREE.Object3D();
+        this.pitchObject.add(camera);
+
+        this.yawObject = new THREE.Object3D();
+        this.yawObject.add(this.pitchObject);
+        this.pivot = new THREE.Object3D();
+
+        this.pivot.add(this.yawObject);
     }
 });
