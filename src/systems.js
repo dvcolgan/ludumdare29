@@ -1,5 +1,6 @@
 ROCKS_RADIUS = 20;
 AREA_RADIUS = 200;
+JAW_MOVEMENT_SPEED = 0.1;
 
 
 S.KeyboardInputSystem = ECS.System.extend({
@@ -26,16 +27,26 @@ S.SimpleMovementSystem = ECS.System.extend({
         ).iterate(function(entity) {
             var speed = 20 * dt;
             if (entity.components.actionInput.left) {
-                entity.components.camera.camera.position.x -= speed;
+                entity.components.camera.pivot.position.x -= speed;
             }
             if (entity.components.actionInput.right) {
-                entity.components.camera.camera.position.x += speed;
+                entity.components.camera.pivot.position.x += speed;
             }
             if (entity.components.actionInput.up) {
-                entity.components.camera.pitchObject.position.z -= speed;
+                entity.components.camera.pivot.position.z -= speed;
             }
             if (entity.components.actionInput.down) {
-                entity.components.camera.pitchObject.position.z += speed;
+                entity.components.camera.pivot.position.z += speed;
+            }
+
+            entity.components.camera.pivot.position.y += 0.3;
+
+            var pos = entity.components.camera.pivot.position;
+            var distVec = new THREE.Vector3(pos.x, 0, pos.z);
+            if (distVec.length() > ROCKS_RADIUS) {
+                distVec.setLength(ROCKS_RADIUS);
+                entity.components.camera.pivot.position.x = distVec.x;
+                entity.components.camera.pivot.position.z = distVec.z;
             }
         }.bind(this));
     }
@@ -74,16 +85,20 @@ S.TweenSystem = ECS.System.extend({
 });
 
 S.SoundSystem = ECS.System.extend({
-    init: function(soundManager) {
+    init: function() {
         this._super();
-        this.soundManager = soundManager;
+        this.soundManager = window.soundManager;
     },
 
     update: function(dt) {
          var entities = this.engine.getEntities('playSound');
          entities.iterate(function(entity) {
-             this.soundManager.play(entity.components.playSound.url);
-             this.engine.removeEntity(entity);
+            console.log(entity.components.playSound.volume);
+            this.soundManager.play(
+                entity.components.playSound.soundEffectKey,
+                {volume: entity.components.playSound.volume }
+            );
+            this.engine.removeEntity(entity);
          }.bind(this));
     }
 });
@@ -111,12 +126,16 @@ S.ThreeJSRenderingSystem = ECS.System.extend({
         this.pointLight.position.y = -5;
         this.scene.add(this.pointLight);
 
+        this.pointLight = new THREE.PointLight('#f8de91', 1, AREA_RADIUS * 1.4);
+        this.pointLight.position.y = 20;
+        this.scene.add(this.pointLight);
+
         this.wallsTexture = G.loader.cloneTexture('ground');
         this.wallsTexture.wrapS = this.wallsTexture.wrapT = THREE.RepeatWrapping;
         this.wallsTexture.repeat.set(10, 10);
         this.wallsTexture.needsUpdate = true;
         this.wallsMesh = new THREE.Mesh(
-            new THREE.CylinderGeometry(ROCKS_RADIUS + 1, ROCKS_RADIUS + 1, AREA_RADIUS * 2, 12, 5, true),
+            new THREE.CylinderGeometry(ROCKS_RADIUS + 2, ROCKS_RADIUS + 2, AREA_RADIUS * 2, 12, 5, true),
             new THREE.MeshPhongMaterial({
                 specular: '#222222',
                 color: '#111111',
@@ -127,6 +146,71 @@ S.ThreeJSRenderingSystem = ECS.System.extend({
             })
         );
         this.scene.add(this.wallsMesh);
+
+        this.createMonster();
+    },
+
+    createMonster: function() {
+        function makeJaw() {
+            var jaw = new THREE.Mesh(
+                new THREE.SphereGeometry(ROCKS_RADIUS + 2, 16, 16, 0, Math.PI*2, 0, Math.PI/2),
+                new THREE.MeshPhongMaterial({
+                    specular: '#222222',
+                    color: '#111111',
+                    emissive: '#000000',
+                    shininess: 5,
+                    side: THREE.DoubleSide
+                })
+            );
+            var toothMaterial = new THREE.MeshPhongMaterial({
+                specular: '#ffffff',
+                color: '#cccccc',
+                emissive: '#888888',
+                shininess: 100,
+                side: THREE.DoubleSide
+            });
+
+            var palate = new THREE.Mesh(
+                new THREE.CircleGeometry(ROCKS_RADIUS + 2, 16),
+                new THREE.MeshLambertMaterial({ color: '#cc0000', side: THREE.DoubleSide })
+            );
+            palate.rotation.x = Math.PI/2;
+            jaw.add(palate);
+            var makeTooth = function(x, z, rot) {
+                var tooth = new THREE.Mesh(
+                    new THREE.CubeGeometry(4.8, 4, 2),
+                    toothMaterial
+                );
+                tooth.position.x = x;
+                tooth.position.y = -2;
+                tooth.position.z = z;
+                tooth.rotation.y = rot;
+                jaw.add(tooth);
+            };
+            makeTooth(-15.5, ROCKS_RADIUS - 7, -Math.PI/4);
+            makeTooth(-9.5, ROCKS_RADIUS - 3, -Math.PI/8);
+            makeTooth(-3.25, ROCKS_RADIUS - 1.5, -Math.PI/16);
+            makeTooth(3.25, ROCKS_RADIUS - 1.5, Math.PI/16);
+            makeTooth(9.5, ROCKS_RADIUS - 3, Math.PI/8);
+            makeTooth(15.5, ROCKS_RADIUS - 7, Math.PI/4);
+            return jaw;
+        }
+        this.monster = new THREE.Object3D();
+        var bottomJaw = makeJaw();
+        var upperJaw = makeJaw();
+        bottomJaw.position.z -= 2;
+        upperJaw.position.z += 2;
+        bottomJaw.rotation.y = Math.PI;
+        bottomJaw.rotation.x -= Math.PI / 3;
+        upperJaw.rotation.x += Math.PI / 3;
+        bottomJaw.direction = 'opening';
+        upperJaw.direction = 'opening';
+        this.monster.add(bottomJaw);
+        this.monster.add(upperJaw);
+        this.monster.bottomJaw = bottomJaw;
+        this.monster.upperJaw = upperJaw;
+        this.monster.position.y = AREA_RADIUS;
+        this.scene.add(this.monster);
     },
 
     componentAdded: function(entity, componentName) {
@@ -161,6 +245,39 @@ S.ThreeJSRenderingSystem = ECS.System.extend({
         this.wallsTexture.offset.y -= 4 * dt;
         this.wallsTexture.offset.y %= 1;
         this.wallsTexture.needsUpdate = true;
+
+
+        var bottomJaw = this.monster.bottomJaw;
+        var upperJaw = this.monster.upperJaw;
+        if (bottomJaw.direction === 'opening') {
+            bottomJaw.rotation.x += JAW_MOVEMENT_SPEED;
+            if (bottomJaw.rotation.x >= 0) {
+                bottomJaw.direction = 'closing';
+                this.engine.getEntities('camera').iterate(function(player) {
+                    var which = _.sample(['crunch1', 'crunch2', 'crunch3', 'crunch4', 'crunch5', 'crunch6', 'crunch7']);
+                    this.engine.addEntity(P.makeSoundEffect(which, (player.components.camera.pivot.position.y / AREA_RADIUS) * 100));
+                }.bind(this));
+            }
+        }
+        else {
+            bottomJaw.rotation.x -= JAW_MOVEMENT_SPEED;
+            if (bottomJaw.rotation.x <= -Math.PI/2) {
+                bottomJaw.direction = 'opening';
+            }
+        }
+        if (upperJaw.direction === 'opening') {
+            upperJaw.rotation.x -= JAW_MOVEMENT_SPEED;
+            if (upperJaw.rotation.x <= 0) {
+                upperJaw.direction = 'closing';
+            }
+        }
+        else {
+            upperJaw.rotation.x += JAW_MOVEMENT_SPEED;
+            if (upperJaw.rotation.x >= Math.PI/2) {
+                upperJaw.direction = 'opening';
+            }
+        }
+
         this.engine.getEntities('camera').iterate(function(entity) {
             this.renderer.render(this.scene, entity.components.camera.camera);
         }.bind(this));
@@ -180,15 +297,21 @@ S.PauseSystem = ECS.System.extend({
 });
 
 S.TitleScreenSystem = ECS.System.extend({
-    init: function(game, selector, playStateClass) {
+    init: function() {
         this._super();
-        this.$container = $(selector);
-        this.$wrapper = $('<div style="width: 100%; height: 100%;"></div>');
+        this.$container = $(G.selector);
+        this.$wrapper = $('<div class="wrapper"></div>');
+        this.$wrapper.width(window.innerWidth);
+        this.$wrapper.height(window.innerHeight);
+        this.$wrapper.append('<h1>Journey<br/>to the center<br/>of the hole</h1>');
+
         $button = $('<button>Click me to start</button>').click(function() {
-            game.pushState(playStateClass);
+            G.pushState(new T.PlayState());
         });
+
         this.$wrapper.append($button);
         this.$container.append(this.$wrapper);
+        this.$wrapper.append('<p>Note: this game steals your mouse pointer, hit escape to exit.</p>');
     },
 
     pause: function() {
@@ -200,7 +323,7 @@ S.TitleScreenSystem = ECS.System.extend({
     },
 
     destroy: function() {
-        this.$container.remove(this.$wrapper);
+        this.$wrapper.remove();
     }
 });
 
@@ -210,7 +333,7 @@ S.PauseScreenSystem = ECS.System.extend({
         this.$container = $(G.selector);
         this.$wrapper = $('<div></div>');
         $button = $('<button>Click me to go back</button>').click(function() {
-            G.popStateAndPause();
+            G.popStateAndDestroy();
         });
         this.$wrapper.append($button);
         this.$container.append(this.$wrapper);
@@ -225,7 +348,7 @@ S.PauseScreenSystem = ECS.System.extend({
     },
 
     destroy: function() {
-        this.$container.remove(this.$wrapper);
+        this.$wrapper.remove();
     }
 });
 
@@ -257,7 +380,6 @@ S.ObstacleFlyingSystem = ECS.System.extend({
         //vector.applyMatrix4(matrix);
     },
     update: function(dt) {
-        console.log(dt);
          var entities = this.engine.getEntities(
              'rock',
              'mesh'
@@ -277,12 +399,24 @@ S.ObstacleFlyingSystem = ECS.System.extend({
 S.GameManagerSystem = ECS.System.extend({
     init: function() {
         this._super();
-        var player = P.makePlayer();
-        player.components.camera.pitchObject.rotation.x = -Math.PI/2;
-        this.engine.addEntity(player);
+        this.player = P.makePlayer();
+        this.player.components.camera.pitchObject.rotation.x = -Math.PI/2;
+        this.engine.addEntity(this.player);
+
+        this.stats = P.makeStats();
+        this.engine.addEntity(this.stats);
+        window.soundManager.play('digging', {volume: 50});
     },
 
     update: function(dt) {
+        this.stats.components.gameStats.metersToMonster += dt;
+        console.log(this.stats.components.gameStats.metersToMonster.toFixed(2));
+        if (this.player.components.camera.pivot.position.y >= AREA_RADIUS) {
+            window.finalScore = this.stats.components.gameStats.metersToMonster;
+            window.soundManager.stop('digging');
+            G.pushState(new T.GameOverState());
+        }
+
     }
 });
 
@@ -292,3 +426,36 @@ var entities = this.engine.getEntities(
 ).iterate(function(entity) {
 }.bind(this));
 */
+
+S.GameOverScreenSystem = ECS.System.extend({
+    init: function() {
+        this._super();
+        this.$container = $(G.selector);
+        this.$wrapper = $('<div class="wrapper"></div>');
+        this.$wrapper.width(window.innerWidth);
+        this.$wrapper.height(window.innerHeight);
+        this.$wrapper.append('<h1>The giant jaws<br/>close around you<br/>as you take your<br/>last panicked breath</h1>');
+        this.$wrapper.append('<p>But, you did manage to fall</p>');
+        this.$wrapper.append('<p><strong>' + window.finalScore.toFixed(2) + 'km</strong></p>');
+        this.$wrapper.append('<h2>beneath the surface&trade;</h2>');
+        this.$wrapper.append('<p>before you were eaten!<br/>CONGRATULATIONS</p>');
+        var $button = $('<button>Try Again?</button>').click(function() {
+            window.location.href = window.location.href;
+        });
+        this.$wrapper.append($button);
+        this.$container.append(this.$wrapper);
+        window.soundManager.play('satisfied');
+    },
+
+    pause: function() {
+        this.$wrapper.css('display', 'none');
+    },
+
+    restart: function() {
+        this.$wrapper.css('display', 'block');
+    },
+
+    destroy: function() {
+        this.$wrapper.remove();
+    }
+});

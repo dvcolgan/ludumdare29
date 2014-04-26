@@ -2,7 +2,7 @@ T.TitleState = ECS.GameState.extend({
     name: 'TitleState',
     create: function() {
         this.engine
-            .addSystem(new GAME.TitleScreenSystem(), 0)
+            .addSystem(new S.TitleScreenSystem(), 0)
         ;
     }
 });
@@ -21,6 +21,9 @@ T.PlayState = ECS.GameState.extend({
             .addSystem(new S.ThreeJSRenderingSystem(), 3)
             .addSystem(new S.GameManagerSystem(), 4)
         ;
+        var element = $('canvas').get(0);
+        element.requestPointerLock = element.requestPointerLock || element.mozRequestPointerLock || element.webkitRequestPointerLock;
+        element.requestPointerLock();
     }
 });
 
@@ -33,16 +36,29 @@ T.PauseState = ECS.GameState.extend({
     }
 });
 
-G = new ECS.Game({
-    selector: 'body',
-    startingState: new T.PlayState(),
-    preload: function() {
-        this.loader.loadImage('ground', 'assets/images/ground.png');
+T.GameOverState = ECS.GameState.extend({
+    name: 'GameOverState',
+    create: function() {
+        document.exitPointerLock = document.exitPointerLock ||
+            document.mozExitPointerLock ||
+            document.webkitExitPointerLock;
+        document.exitPointerLock();
+        this.engine
+            .addSystem(new S.GameOverScreenSystem(), 0)
+        ;
     }
 });
 
-$(document).click(function() {
-    var element = $('canvas').get(0);
-    element.requestPointerLock = element.requestPointerLock || element.mozRequestPointerLock || element.webkitRequestPointerLock;
-    element.requestPointerLock();
+G = new ECS.Game({
+    selector: 'body',
+    startingState: new T.TitleState(),
+    preload: function() {
+        this.loader.loadImage('ground', 'assets/images/ground.png');
+        this.loader.loadBGM('digging', 'assets/audio/digging-through-dirt.wav');
+        for (var i=1; i<=7; i++) {
+        this.loader.loadSoundEffect('crunch' + i, 'assets/audio/crunch'+i+'.wav');
+        this.loader.loadSoundEffect('satisfied', 'assets/audio/satisfied-monster.wav');
+        }
+    }
 });
+

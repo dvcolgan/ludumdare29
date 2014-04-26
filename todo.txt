@@ -1,1 +1,3 @@
-blender textured model into threejs
+texture the walls of the corridor
+add a hud for the km falled and distance to monster
+motion blur/particles

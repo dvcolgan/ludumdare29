@@ -37,3 +37,15 @@ P.makeRock = function() {
         new C.Mesh(mesh)
     );
 };
+
+P.makeStats = function() {
+    return new ECS.Entity.createWithComponents(
+        new C.GameStats()
+    );
+};
+
+P.makeSoundEffect = function(soundEffectKey, volume) {
+    return new ECS.Entity.createWithComponents(
+        new C.PlaySound(soundEffectKey, volume)
+    );
+};

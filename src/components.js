@@ -26,9 +26,10 @@ C.RigidBody = ECS.Component.extend({
 });
 
 C.PlaySound = ECS.Component.extend({
-    init: function(url) {
+    init: function(soundEffectKey, volume) {
         this.name = 'playSound';
-        this.url = url;
+        this.soundEffectKey = soundEffectKey;
+        this.volume = volume;
     }
 });
 
@@ -61,5 +62,13 @@ C.Camera = ECS.Component.extend({
         this.pivot = new THREE.Object3D();
 
         this.pivot.add(this.yawObject);
+    }
+});
+
+C.GameStats = ECS.Component.extend({
+    init: function() {
+        this.name = 'gameStats';
+        this.metersFallen = 0.0;
+        this.metersToMonster = 0.0;
     }
 });
