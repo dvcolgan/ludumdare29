@@ -1,3 +1,11 @@
+window.stone = new CANNON.Material('stone');
+window.stone_stone = new CANNON.ContactMaterial(window.stone,
+    window.stone,
+    0.3, // friction
+    0.4  // Restitution
+    );
+
+
 T.TitleState = ECS.GameState.extend({
     name: 'TitleState',
     create: function() {
@@ -19,6 +27,7 @@ T.PlayState = ECS.GameState.extend({
             .addSystem(new S.SoundSystem(), 2)
             .addSystem(new S.ObstacleFlyingSystem(), 3)
             .addSystem(new S.ThreeJSRenderingSystem(), 3)
+            .addSystem(new S.CannonPhysicsSystem(), 3)
             .addSystem(new S.GameManagerSystem(), 4)
         ;
     }

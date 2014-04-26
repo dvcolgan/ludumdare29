@@ -63,3 +63,10 @@ C.Camera = ECS.Component.extend({
         this.pivot.add(this.yawObject);
     }
 });
+
+C.Score = ECS.Component.extend({
+    init: function() {
+        this.name = 'score';
+        this.metersFallen = 0;
+    }
+});

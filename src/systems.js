@@ -1,5 +1,6 @@
 ROCKS_RADIUS = 20;
-AREA_RADIUS = 200;
+AREA_RADIUS = 100;
+NUM_ROCKS = 100;
 
 
 S.KeyboardInputSystem = ECS.System.extend({
@@ -92,11 +93,11 @@ S.ThreeJSRenderingSystem = ECS.System.extend({
     init: function(assets) {
         this._super();
         this.scene = new THREE.Scene();
-        this.scene.fog = new THREE.FogExp2(0x000000, 0.008);
+        //this.scene.fog = new THREE.FogExp2(0x000000, 0.008);
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         //this.renderer.shadowMapEnabled = true;
         //this.renderer.shadowMapSoft = true;
-        //this.renderer.setClearColor(0x91D9FF, 1);
+        this.renderer.setClearColor(0x91D9FF, 1);
 
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(this.renderer.domElement);
@@ -167,6 +168,68 @@ S.ThreeJSRenderingSystem = ECS.System.extend({
     }
 });
 
+S.CannonPhysicsSystem = ECS.System.extend({
+    init: function(assets) {
+        this._super();
+        this.world = new CANNON.World();
+        this.world.gravity.set(0, 0, 0);
+        this.world.broadphase = new CANNON.NaiveBroadphase();
+        this.world.solver.iterations = 5;
+
+        this.world.defaultContactMaterial.contactEquationStiffness = 5e6;
+        this.world.defaultContactMaterial.contactEquationRegularizationTime = 10;
+
+        var world = this.world;
+
+        world.addContactMaterial(window.stone_stone);
+
+        for (var i=0; i<12; i++) {
+            var plane = new CANNON.RigidBody(0, new CANNON.Plane(), stone);
+            var angle = (Math.PI / 6) * i;
+
+            plane.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), angle + Math.PI/2);
+            plane.position.set(
+                ROCKS_RADIUS * Math.cos(angle),
+                0,
+                ROCKS_RADIUS * Math.sin(angle)
+            );
+            world.add(plane);
+        }
+
+    },
+
+    componentAdded: function(entity, componentName) {
+        if (componentName === 'rigidBody') {
+            this.world.add(entity.components.rigidBody.body);
+        }
+    },
+
+    componentRemoved: function(entity, componentName) {
+        if (componentName === 'rigidBody') {
+            this.world.remove(entity.components.rigidBody.body);
+        }
+    },
+
+    pause: function() {
+    },
+
+    restart: function() {
+    },
+
+    update: function(dt) {
+        this.engine.getEntities(
+            'mesh',
+            'rigidBody'
+        ).iterate(function(entity) {
+            var rigidBody = entity.components.rigidBody.body;
+            var mesh = entity.components.mesh.mesh;
+            rigidBody.position.copy(mesh.position);
+            rigidBody.quaternion.copy(mesh.quaternion);
+        }.bind(this));
+        this.world.step(dt);
+    }
+});
+
 S.PauseSystem = ECS.System.extend({
     init: function() {
         this._super();
@@ -233,11 +296,9 @@ S.ObstacleFlyingSystem = ECS.System.extend({
     init: function() {
         this._super();
         this.pool = [];
-        _.times(2000, function() {
+        _.times(NUM_ROCKS, function() {
             var rock = P.makeRock();
-            rock.components.mesh.mesh.position.y = -10000;
-            rock.components.mesh.mesh.geometry.applyMatrix(new THREE.Matrix4().makeTranslation(ROCKS_RADIUS, 0, 0));
-            rock.components.mesh.mesh.rotation.y = Math.random() * 2 * Math.PI;
+            rock.components.rigidBody.body.position.y = -10000;
             this.pool.push(rock);
             this.engine.addEntity(rock);
         }.bind(this));
@@ -247,27 +308,25 @@ S.ObstacleFlyingSystem = ECS.System.extend({
         if (!rock) {
             return;
         }
-        rock.components.mesh.mesh.position.set(0, -AREA_RADIUS, 0);
-
-        // Give this rock a random position around the center
-        //var vector = rock.components.mesh.mesh.position;
-        //var axis = new THREE.Vector3(0, 1, 0);
-        //var angle = Math.random() * 2 * Math.PI;
-        //var matrix = new THREE.Matrix4().makeRotationAxis(axis, angle);
-        //vector.applyMatrix4(matrix);
+        var body = rock.components.rigidBody.body;
+        var angle = Math.random() * 2 * Math.PI;
+        body.position.set(
+            (ROCKS_RADIUS - 2) * Math.cos(angle),
+            -AREA_RADIUS,
+            (ROCKS_RADIUS - 2) * Math.sin(angle)
+        );
+        body.applyForce(new CANNON.Vec3(0, 1000, 0), body.position);
     },
     update: function(dt) {
-        console.log(dt);
          var entities = this.engine.getEntities(
              'rock',
-             'mesh'
+             'rigidBody'
          ).iterate(function(rock) {
-            var mesh = rock.components.mesh.mesh;
-            mesh.position.y += 150 * dt;
-            if (mesh.position.y > AREA_RADIUS + 10) {
+            var body = rock.components.rigidBody.body;
+            if (body.position.y > AREA_RADIUS + 10) {
                 this.pool.push(rock);
             }
-            if (Math.random() < 0.001) {
+            if (Math.random() < 0.005) {
                 this.spawnRock();
             }
          }.bind(this));
