@@ -36,6 +36,7 @@ window.UTIL = {
             this.soundManager = window.soundManager;
             this.soundManager.setup({
                 url: 'vendor/soundmanager2.swf',
+                debugMode: false,
                 flashVersion: 9,
                 waitForWindowLoad: true,
                 useHighPerformance: true,

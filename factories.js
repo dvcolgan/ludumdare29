@@ -1,6 +1,6 @@
 function makeThreeJSScene() {
     var scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x000000, 0.008);
+    scene.fog = new THREE.FogExp2(0x000000, 0.006);
     return scene;
 }
 
@@ -27,16 +27,16 @@ function makeLights(scene) {
     var ambientLight = new THREE.AmbientLight('#333333');
     scene.add(ambientLight);
 
-    var pointLight = new THREE.PointLight('#f8de91', 1, G.AREA_RADIUS * 1.4);
-    pointLight.position.y = 5;
-    scene.add(pointLight);
-    pointLight = new THREE.PointLight('#f8de91', 1, G.AREA_RADIUS * 1.4);
-    pointLight.position.y = -5;
-    scene.add(pointLight);
+    //var pointLight = new THREE.PointLight('#f8de91', 1, G.AREA_RADIUS * 1.4);
+    //pointLight.position.y = 5;
+    //scene.add(pointLight);
+    //pointLight = new THREE.PointLight('#f8de91', 1, G.AREA_RADIUS * 1.4);
+    //pointLight.position.y = -5;
+    //scene.add(pointLight);
 
-    pointLight = new THREE.PointLight('#f8de91', 1, G.AREA_RADIUS * 1.4);
-    pointLight.position.y = 20;
-    scene.add(pointLight);
+    //pointLight = new THREE.PointLight('#f8de91', 1, G.AREA_RADIUS * 1.4);
+    //pointLight.position.y = 20;
+    //scene.add(pointLight);
 }
 
 function makeStats() {
@@ -54,8 +54,13 @@ var MonsterDirtEmitter = Class.extend({
         this.available = [];
         this.unavailable = [];
         this.material = new THREE.ParticleBasicMaterial({
-            color: 0x722F1E,
-            size: 0.8
+            color: 0x2D1D0C,
+            size: 1,
+            map: THREE.ImageUtils.loadTexture(
+                "assets/images/dirt-particle.png"
+            ),
+            blending: THREE.AdditiveBlending,
+            transparent: true
         });
 
         for (var i=0; i < this.count; i++) {
@@ -114,7 +119,88 @@ var MonsterDirtEmitter = Class.extend({
 
 
 
-var ObjectPool = Class.extend({
+var FireballPool = Class.extend({
+    init: function(camera, objects, spawnChance, speed) {
+        this.camera = camera;
+        this.unavailable = [];
+        this.available = _.clone(objects);
+        this.spawnChance = spawnChance;
+        this.speed = speed;
+        for (var i=0; i<this.available.length; i++) {
+            var object = this.available[i];
+            object.mesh.position.y = -10000;
+        }
+    },
+    getSpawnedObjects: function() {
+        return this.unavailable;
+    },
+    spawn: function() {
+        var object = this.available.pop();
+        if (!object) {
+            return;
+        }
+        object.mesh.position.set(0, G.AREA_RADIUS, 0);
+        object.direction = object.mesh.position.clone().sub(this.camera.position).normalize();
+        object.direction = this.camera.position.clone().sub(object.mesh.position).normalize();
+        this.unavailable.push(object);
+    },
+    update: function(dt) {
+        var toRemove = [];
+        for (var i=0; i<this.unavailable.length; i++) {
+            var object = this.unavailable[i];
+            object.mesh.position.add(object.direction.clone().multiplyScalar(this.speed * dt));
+            if (object.mesh.position.y < -G.AREA_RADIUS) {
+                this.available.push(object);
+                toRemove.push(object);
+                object.mesh.position.y = -10000;
+            }
+        }
+        for (var j=0; j<toRemove.length; j++) {
+            _.pull(this.unavailable, toRemove[j]);
+        }
+
+        if (Math.random() < this.spawnChance) {
+            this.spawn();
+        }
+    }
+});
+
+function makeFireball(scene) {
+    var fireball = {};
+    fireball.mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(5, 12),
+        new THREE.MeshBasicMaterial({
+            color: '#cc0000'
+        })
+    );
+    fireball.outerMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(6, 12),
+        new THREE.MeshBasicMaterial({
+            color: '#ff0000',
+            transparent: true,
+            opacity: 0.7
+        })
+    );
+    fireball.outerMesh.scale.y = 1.5;
+    fireball.outerMesh.position.y += 0.5;
+    fireball.light = new THREE.PointLight(0xff0000, 4, G.ROCKS_RADIUS * 4);
+    fireball.mesh.add(fireball.light);
+    scene.add(fireball.mesh);
+    fireball.mesh.add(fireball.outerMesh);
+    return fireball;
+}
+
+function makeFireballPool(scene, camera) {
+    var fireballs = [];
+    _.times(8, function() {
+        var fireball = makeFireball(scene);
+        fireballs.push(fireball);
+    });
+    var pool = new FireballPool(camera, fireballs, 0.01, 30);
+    return pool;
+}
+
+var ObstaclePool = Class.extend({
     init: function(objects, spawnChance, speed) {
         this.unavailable = [];
         this.available = _.clone(objects);
@@ -129,18 +215,32 @@ var ObjectPool = Class.extend({
         return this.unavailable;
     },
     spawn: function() {
-        var object = this.available.pop();
-        if (!object) {
-            return;
-        }
-        object.mesh.position.set(
-            Math.random() * G.ROCKS_RADIUS * 2 - G.ROCKS_RADIUS,
-            -G.AREA_RADIUS,
-            Math.random() * G.ROCKS_RADIUS * 2 - G.ROCKS_RADIUS
-        );
+        var times = Math.ceil(Math.random() * 10);
+        var xPos = Math.random() * G.ROCKS_RADIUS * 2 - G.ROCKS_RADIUS;
+        var zPos = Math.random() * G.ROCKS_RADIUS * 2 - G.ROCKS_RADIUS;
+        //if (xPos < G.ROCKS_RADIUS/2 && xPos > 0) { xPos = G.ROCKS_RADIUS/2; }
+        //if (xPos > -G.ROCKS_RADIUS/2 && xPos < 0) { xPos = -G.ROCKS_RADIUS/2; }
+        //if (zPos < G.ROCKS_RADIUS/2 && zPos > 0) { zPos = G.ROCKS_RADIUS/2; }
+        //if (zPos > -G.ROCKS_RADIUS/2 && zPos < 0) { zPos = -G.ROCKS_RADIUS/2; }
+        var xAdd = Math.ceil(Math.random() * 6) - 3;
+        var zAdd = Math.ceil(Math.random() * 6) - 3;
 
-        moveObjectInsideLevelIfOutside(object.mesh);
-        this.unavailable.push(object);
+        var targetVec = new THREE.Vector3(xPos, -G.AREA_RADIUS, zPos);
+        //moveObjectInsideLevelIfOutside(targetVec);
+
+        for (var i=0; i<times; i++) {
+            var object = this.available.pop();
+            if (!object) {
+                return;
+            }
+            object.mesh.position.set(
+                xPos + xAdd * i,
+                -G.AREA_RADIUS,
+                zPos + zAdd * i
+            );
+
+            this.unavailable.push(object);
+        }
     },
     update: function(dt) {
         var toRemove = [];
@@ -162,75 +262,35 @@ var ObjectPool = Class.extend({
     }
 });
 
-function makeDirt(scene) {
-    var fireball = {};
-    fireball.mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(5, 12),
-        new THREE.MeshLambertMaterial({ color: 'red' })
-    );
-    fireball.outerMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(6, 12),
-        new THREE.MeshPhongMaterial({
-            specular: '#ffffdd',
-            color: '#ff8800',
-            emissive: 'red',
-            shininess: 1,
-            transparent: true,
-            opacity: 0.5
+
+
+
+
+
+
+function makeObstacle(scene, assetManager) {
+    var obstacle = {};
+    obstacle.mesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(3, 3, 6, 3, 3),
+        new THREE.MeshBasicMaterial({
+            shading: THREE.FlatShading,
+            map: assetManager.assets['vines']
         })
     );
-    fireball.outerMesh.scale.y = 1.5;
-    fireball.outerMesh.position.y -= 0.5;
-    //fireball.light = new THREE.PointLight(0xff8800, 2, G.ROCKS_RADIUS * 2);
-    //fireball.mesh.add(fireball.light);
-    scene.add(fireball.mesh);
-    fireball.mesh.add(fireball.outerMesh);
-    return fireball;
+    obstacle.mesh.rotation.x = 2 * Math.PI * Math.random();
+    obstacle.mesh.rotation.y = 2 * Math.PI * Math.random();
+    obstacle.mesh.rotation.z = 2 * Math.PI * Math.random();
+    scene.add(obstacle.mesh);
+    return obstacle;
 }
 
-function makeDirtPool(scene) {
-    var fireballs = [];
-    _.times(100, function() {
-        var fireball = makeFireball(scene);
-        fireballs.push(fireball);
+function makeObstaclePool(scene, assetManager) {
+    var obstacles = [];
+    _.times(400, function() {
+        var obstacle = makeObstacle(scene, assetManager);
+        obstacles.push(obstacle);
     });
-    var pool = new ObjectPool(fireballs, 0.05, 120);
-    return pool;
-}
-
-function makeFireball(scene) {
-    var fireball = {};
-    fireball.mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(5, 12),
-        new THREE.MeshLambertMaterial({ color: 'red' })
-    );
-    fireball.outerMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(6, 12),
-        new THREE.MeshPhongMaterial({
-            specular: '#ffffdd',
-            color: '#ff8800',
-            emissive: 'red',
-            shininess: 1,
-            transparent: true,
-            opacity: 0.5
-        })
-    );
-    fireball.outerMesh.scale.y = 1.5;
-    fireball.outerMesh.position.y -= 0.5;
-    //fireball.light = new THREE.PointLight(0xff8800, 2, G.ROCKS_RADIUS * 2);
-    //fireball.mesh.add(fireball.light);
-    scene.add(fireball.mesh);
-    fireball.mesh.add(fireball.outerMesh);
-    return fireball;
-}
-
-function makeFireballPool(scene) {
-    var fireballs = [];
-    _.times(100, function() {
-        var fireball = makeFireball(scene);
-        fireballs.push(fireball);
-    });
-    var pool = new ObjectPool(fireballs, 0.05, 120);
+    var pool = new ObstaclePool(obstacles, 0.05, 200);
     return pool;
 }
 
@@ -305,7 +365,7 @@ function makeWalls(assetManager, scene) {
     walls.texture.repeat.set(10, 10);
     walls.texture.needsUpdate = true;
     walls.mesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(G.ROCKS_RADIUS + 2, G.ROCKS_RADIUS + 2, G.AREA_RADIUS * 2, 12, 5, true),
+        new THREE.CylinderGeometry(G.ROCKS_RADIUS + 2, G.ROCKS_RADIUS + 2, 2 * G.AREA_RADIUS * 2, 12, 5, true),
         new THREE.MeshPhongMaterial({
             specular: '#222222',
             color: '#111111',
@@ -315,6 +375,7 @@ function makeWalls(assetManager, scene) {
             map: walls.texture
         })
     );
+    walls.mesh.position.y -= G.AREA_RADIUS;
     scene.add(walls.mesh);
     return walls;
 }

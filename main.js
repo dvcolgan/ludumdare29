@@ -2,9 +2,12 @@ window.model = {};
 
 var TitleState = function() {
     $('#title-state').show();
+    window.soundManager.play('titleMusic');
 
     $('#start-button').click(function() {
         $('#title-state').hide();
+        window.soundManager.stop('titleMusic');
+        $('body').css('overflow', 'hidden');
         PlayState();
     });
 };
@@ -22,7 +25,8 @@ var PlayState = function() {
     //controls.noKeys = true;
     model.walls = makeWalls(model.assetManager, model.scene);
 
-    model.fireballs = makeFireballPool(model.scene);
+    model.fireballs = makeFireballPool(model.scene, model.camera);
+    model.obstacles = makeObstaclePool(model.scene, model.assetManager);
 
     //model.rocks = makeRocks();
     model.stats = makeStats();
@@ -31,7 +35,7 @@ var PlayState = function() {
     model.soundManager.play('wind', {volume: 50});
     model.camera.rotation.x -= Math.PI / 2;
 
-    model.monsterDirtParticles = new MonsterDirtEmitter(model.scene, 1000);
+    model.monsterDirtParticles = new MonsterDirtEmitter(model.scene, G.NUM_DIRT_PARTICLES);
 
     //model.camera.position.set(0,0.1,0);
 
@@ -52,7 +56,8 @@ var PlayState = function() {
         var collidesWithWalls = updatePlayerMovement(dt, model.input, model.camera);
         if (!model.player.isInvincible &&
                 (collidesWithWalls ||
-                    playerCollidesWithFireballs(model.fireballs.getSpawnedObjects(), model.camera))) {
+                    playerCollidesWithObjects(model.fireballs.getSpawnedObjects(), model.camera) ||
+                    playerCollidesWithObjects(model.obstacles.getSpawnedObjects(), model.camera))) {
             handleObstacleHit(dt, model.player, model.camera);
         }
         handleReorientingAfterHit(dt, model.input, model.player, model.camera);
@@ -66,6 +71,7 @@ var PlayState = function() {
         model.renderer.render(model.scene, model.camera);
 
         model.fireballs.update(dt);
+        model.obstacles.update(dt);
 
         // Check for game over
         if (checkIfGameOver(model.camera)) {
@@ -82,7 +88,7 @@ var PlayState = function() {
 
 var GameOverState = function() {
     $('#game-over-state').show();
-    model.soundManager.play('satisfied');
+    model.soundManager.play('creditsSong');
     $('#final-score-display').text(parseInt(model.stats.metersFallen));
 
     $('#restart-button').click(function() {
@@ -92,7 +98,11 @@ var GameOverState = function() {
 
 $(document).ready(function() {
     var assetManager = new UTIL.AssetManager();
-    assetManager.loadImage('ground', 'assets/images/ground.png');
+    assetManager.loadImage('ground', 'assets/images/wall-dirt.png');
+    assetManager.loadImage('vines', 'assets/images/vines.png');
+    assetManager.loadBGM('titleMusic', 'assets/audio/title-background-music.wav');
+    assetManager.loadSoundEffect('creditsSong', 'assets/audio/song-under-the-credit.wav');
+    //assetManager.loadImage('ground', 'assets/images/pepsi.png');
     assetManager.loadBGM('digging', 'assets/audio/digging-through-dirt.wav');
     assetManager.loadBGM('wind', 'assets/audio/wind.wav');
     for (var i=1; i<=7; i++) {
@@ -105,6 +115,6 @@ $(document).ready(function() {
             soundManager: assetManager.soundManager,
             assetManager: assetManager
         });
-        PlayState();
+        TitleState();
     });
 });

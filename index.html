@@ -9,7 +9,6 @@
         color: white;
         font-weight: bold;
         font-family: 'Alegreya Sans SC', sans-serif;
-        overflow: hidden;
     }
     canvas {
         position: absolute;
@@ -68,14 +67,25 @@
     #game-over-state {
         background-color: rgba(0,0,0,0.7);
     }
+    strong {
+        color: red;
+    }
+    em {
+        color: yellow;
+    }
     </style>
 </head>
 
 <body>
     <div id="title-state" class="state">
         <h1>Journey<br/>to the center<br/>of the hole</h1>
-        <button id="start-button">Click me to start</button>
-        <p>Note: this game steals your mouse pointer, hit escape to exit.</p>
+        <p><em>GIANT MONSTER</em> HAS CHASED YOU INTO GIANT HOLE</p>
+        <p>USE <strong>WASD</strong> OR <strong>ARROWS</strong> TO AVOID <em>TREE ROOTS</em>, the <em>sides of the hole</em>, and <strong>the monster's fireballs</strong></p>
+        <p>IF YOU GET HIT, YOU WILL <strong>FLIP UPWARDS AND SEE THE MONSTER</strong>
+        <em>MASH SPACE BAR TO REORIENT YOURSELF QUICKLY!</em>
+            </p>
+        <button id="start-button">CLICK HERE TO FACE YOUR DOOM</button>
+        <p>Made in 48 hours by <a href="https://twitter.com/davidscolgan">@dvcolgan</a>, <a href="http://twitch.tv/dvcolgan">Twitch Stream</a></p>
     </div>
     <div id="play-state" class="state">
         <div class="meters-display"></div>

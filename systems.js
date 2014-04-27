@@ -64,7 +64,7 @@ function updateWalls(dt, walls) {
     walls.texture.needsUpdate = true;
 }
 
-function playerCollidesWithFireballs(fireballs, camera) {
+function playerCollidesWithObjects(fireballs, camera) {
     for (var i=0; i<fireballs.length; i++) {
         var fireball = fireballs[i];
         if (fireball.mesh.position.distanceTo(camera.position) < 5) {
@@ -72,27 +72,12 @@ function playerCollidesWithFireballs(fireballs, camera) {
         }
     }
     return false;
-    //var localVertex = camera.position.clone();
-    //var globalVertex = localVertex.applyMatrix4(camera.matrix);
-    //var directionVector = globalVertex.sub(camera.position);
-    //var ray = new THREE.Raycaster(localVertex, directionVector.clone().normalize());
-
-    //var rocksWhichCanCollide = _.reduce(
-    //for (var i=0; i<rocks.length; i++) {
-    //    var rock = rocks[i];
-    //    if (rock.
-
-    //        var collisionResults = ray.intersectObjects(collidableMeshList);
-    //        if ( collisionResults.length > 0 && collisionResults[0].distance < directionVector.length() ) 
-    //            appendText(" Hit ");
-    //}
-    //return input.keys.space && !player.canReorient;
 }
 
 function handleObstacleHit(dt, player, camera) {
     player.isInvincible = true;
     // Move the player closer to the monster
-    camera.position.y += 4;
+    camera.position.y += G.AMOUNT_MOVED_BACK_ON_HIT;
 
     // Rotate the player around
     var rotation = { x: camera.rotation.x };
@@ -104,6 +89,7 @@ function handleObstacleHit(dt, player, camera) {
         })
         .onComplete(function() {
             player.canReorient = true;
+            player.isInvincible = false;
         }).start();
 }
 
@@ -119,14 +105,13 @@ function handleReorientingAfterHit(dt, input, player, camera) {
             .onComplete(function() {
                 camera.rotation.x = -Math.PI/2;
                 player.canReorient = false;
-                player.isInvincible = false;
             }).start();
     }
 }
 
 function updatePlayerMovement(dt, input, camera) {
     // Move the player according to the arrow keys on the x, z plane
-    var speed = 20 * dt;
+    var speed = G.PLAYER_MOVEMENT_SPEED * dt;
     var left = input.keys.left || input.keys.a;
     var right = input.keys.right || input.keys.d || input.keys.e;
     var up = input.keys.up || input.keys.w || input.keys.comma;
@@ -145,15 +130,15 @@ function updatePlayerMovement(dt, input, camera) {
         camera.position.z += speed;
     }
 
-    return moveObjectInsideLevelIfOutside(camera);
+    return moveObjectInsideLevelIfOutside(camera.position);
 }
 
-function moveObjectInsideLevelIfOutside(object) {
-    var distVec = new THREE.Vector3(object.position.x, 0, object.position.z);
+function moveObjectInsideLevelIfOutside(position) {
+    var distVec = new THREE.Vector3(position.x, 0, position.z);
     if (distVec.length() > G.ROCKS_RADIUS) {
         distVec.setLength(G.ROCKS_RADIUS - 10);
-        object.position.x = distVec.x;
-        object.position.z = distVec.z;
+        position.x = distVec.x;
+        position.z = distVec.z;
         return true;
     }
     return false;
@@ -196,6 +181,6 @@ function updateFireballAnimations(dt, fireballs) {
     for (var i=0; i<fireballs.length; i++) {
         var fireball = fireballs[i];
         //fireball.mesh.rotation.x += 0.1;
-        fireball.outerMesh.rotation.y += 6 * dt;
+        fireball.outerMesh.rotation.y += 2 * dt;
     }
 }
