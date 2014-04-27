@@ -1,1 +1,15 @@
-blender textured model into threejs
+add rocks/roots
+playtest
+motion blur/particles on monster, around player maybe
+texture the walls of the corridor
+add bgm
+enhance sound effects (reverb)
+tunnel narrowing?
+
+
+monster shoots fireballs at you from behind
+you hit the space key to switch between looking up or down
+
+rocks or branches that are still spheres collisionwise are coming up from below, but they are close to each other, so they look like rods or something
+
+hitting rocks or the walls slow you down, and fireballs slam you into the wall also but give you a speed boost?

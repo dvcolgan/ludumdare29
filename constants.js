@@ -1,0 +1,5 @@
+G = {
+    ROCKS_RADIUS: 20,
+    AREA_RADIUS: 200,
+    JAW_MOVEMENT_SPEED: 0.1
+};
