@@ -28,8 +28,8 @@ P.makePlayer = function() {
 
 P.makeRock = function() {
     var mesh = new THREE.Mesh(
-        new THREE.CubeGeometry(1, 1, 1),
-        new THREE.MeshBasicMaterial({ color: 'brown' })
+        new THREE.CubeGeometry(ROCKS_RADIUS * 2, 1, Math.random() * 4 + 1),
+        new THREE.MeshBasicMaterial({ color: 'red' })
     );
 
     return new ECS.Entity.createWithComponents(

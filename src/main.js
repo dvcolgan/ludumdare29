@@ -55,10 +55,10 @@ G = new ECS.Game({
     preload: function() {
         this.loader.loadImage('ground', 'assets/images/ground.png');
         this.loader.loadBGM('digging', 'assets/audio/digging-through-dirt.wav');
+        this.loader.loadBGM('wind', 'assets/audio/wind.wav');
         for (var i=1; i<=7; i++) {
-        this.loader.loadSoundEffect('crunch' + i, 'assets/audio/crunch'+i+'.wav');
-        this.loader.loadSoundEffect('satisfied', 'assets/audio/satisfied-monster.wav');
+            this.loader.loadSoundEffect('crunch' + i, 'assets/audio/crunch'+i+'.wav');
+            this.loader.loadSoundEffect('satisfied', 'assets/audio/satisfied-monster.wav');
         }
     }
 });
-

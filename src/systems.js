@@ -39,7 +39,7 @@ S.SimpleMovementSystem = ECS.System.extend({
                 entity.components.camera.pivot.position.z += speed;
             }
 
-            entity.components.camera.pivot.position.y += 0.3;
+            //entity.components.camera.pivot.position.y += 0.3;
 
             var pos = entity.components.camera.pivot.position;
             var distVec = new THREE.Vector3(pos.x, 0, pos.z);
@@ -93,7 +93,6 @@ S.SoundSystem = ECS.System.extend({
     update: function(dt) {
          var entities = this.engine.getEntities('playSound');
          entities.iterate(function(entity) {
-            console.log(entity.components.playSound.volume);
             this.soundManager.play(
                 entity.components.playSound.soundEffectKey,
                 {volume: entity.components.playSound.volume }
@@ -242,7 +241,7 @@ S.ThreeJSRenderingSystem = ECS.System.extend({
     },
 
     update: function(dt) {
-        this.wallsTexture.offset.y -= 4 * dt;
+        this.wallsTexture.offset.y -= 5 * dt;
         this.wallsTexture.offset.y %= 1;
         this.wallsTexture.needsUpdate = true;
 
@@ -356,7 +355,7 @@ S.ObstacleFlyingSystem = ECS.System.extend({
     init: function() {
         this._super();
         this.pool = [];
-        _.times(2000, function() {
+        _.times(100, function() {
             var rock = P.makeRock();
             rock.components.mesh.mesh.position.y = -10000;
             rock.components.mesh.mesh.geometry.applyMatrix(new THREE.Matrix4().makeTranslation(ROCKS_RADIUS, 0, 0));
@@ -380,19 +379,19 @@ S.ObstacleFlyingSystem = ECS.System.extend({
         //vector.applyMatrix4(matrix);
     },
     update: function(dt) {
-         var entities = this.engine.getEntities(
-             'rock',
-             'mesh'
-         ).iterate(function(rock) {
+        var entities = this.engine.getEntities(
+            'rock',
+            'mesh'
+        ).iterate(function(rock) {
             var mesh = rock.components.mesh.mesh;
-            mesh.position.y += 150 * dt;
+            mesh.position.y += 150 * dt * 0.02 * (10000 * (window.gameStats.metersFallen / 10000));
             if (mesh.position.y > AREA_RADIUS + 10) {
                 this.pool.push(rock);
             }
             if (Math.random() < 0.001) {
                 this.spawnRock();
             }
-         }.bind(this));
+        }.bind(this));
     }
 });
 
@@ -406,17 +405,49 @@ S.GameManagerSystem = ECS.System.extend({
         this.stats = P.makeStats();
         this.engine.addEntity(this.stats);
         window.soundManager.play('digging', {volume: 50});
+        window.soundManager.play('wind', {volume: 50});
+        this.$container = $(G.selector);
+        this.$container.append($('<div class="meters-display"></div>'));
+        window.gameStats = this.stats.components.gameStats;
     },
 
     update: function(dt) {
-        this.stats.components.gameStats.metersToMonster += dt;
-        console.log(this.stats.components.gameStats.metersToMonster.toFixed(2));
+        var gameStats = this.stats.components.gameStats;
+        gameStats.metersFallen += dt * 10;
+        $('.meters-display').text(parseInt(this.stats.components.gameStats.metersFallen) + ' m');
+        if (gameStats.metersFallen < 10) {
+            $('.meters-display').width(150);
+        }
+        else if (gameStats.metersFallen < 100) {
+            $('.meters-display').width(175);
+        }
+        else if (gameStats.metersFallen < 1000) {
+            $('.meters-display').width(200);
+        }
+        else if (gameStats.metersFallen < 10000) {
+            $('.meters-display').width(225);
+        }
+        else {
+            $('.meters-display').width(250);
+        }
         if (this.player.components.camera.pivot.position.y >= AREA_RADIUS) {
-            window.finalScore = this.stats.components.gameStats.metersToMonster;
+            window.finalScore = this.stats.components.gameStats.metersFallen;
             window.soundManager.stop('digging');
+            window.soundManager.stop('wind');
             G.pushState(new T.GameOverState());
         }
+    },
 
+    pause: function() {
+        $('.meters-display').hide();
+    },
+
+    restart: function() {
+        $('.meters-display').show();
+    },
+
+    destroy: function() {
+        $('.meters-display').remove();
     }
 });
 
@@ -436,7 +467,7 @@ S.GameOverScreenSystem = ECS.System.extend({
         this.$wrapper.height(window.innerHeight);
         this.$wrapper.append('<h1>The giant jaws<br/>close around you<br/>as you take your<br/>last panicked breath</h1>');
         this.$wrapper.append('<p>But, you did manage to fall</p>');
-        this.$wrapper.append('<p><strong>' + window.finalScore.toFixed(2) + 'km</strong></p>');
+        this.$wrapper.append('<p><strong>' + parseInt(window.finalScore) + ' m</strong></p>');
         this.$wrapper.append('<h2>beneath the surface&trade;</h2>');
         this.$wrapper.append('<p>before you were eaten!<br/>CONGRATULATIONS</p>');
         var $button = $('<button>Try Again?</button>').click(function() {
